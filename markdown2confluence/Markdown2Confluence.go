@@ -15,7 +15,7 @@ const (
 	DefaultEndpoint = "https://mydomain.atlassian.net/wiki"
 
 	// Parallelism determines how many files to convert and upload at a time
-	Parallelism = 5
+	Parallelism = 1
 )
 
 // Markdown2Confluence stores the settings for each run
@@ -108,6 +108,8 @@ func (m *Markdown2Confluence) Run() []error {
 							md.Parents = deleteEmpty(md.Parents)
 						}
 
+						fmt.Sprintf("%v\n", md.Parents)
+
 						markdownFiles = append(markdownFiles, md)
 					}
 					return nil
@@ -162,7 +164,7 @@ func (m *Markdown2Confluence) queueProcessor(wg *sync.WaitGroup, queue *chan Mar
 		if err != nil {
 			*errors = append(*errors, fmt.Errorf("Unable to upload markdown file, %s: \n\t%s", markdownFile.Path, err))
 		}
-		fmt.Println(strings.TrimPrefix(fmt.Sprintf("%s - %s: %s", strings.TrimPrefix(strings.Join(markdownFile.Parents, "/"), "/"), markdownFile.Title, url), " - "))
+		fmt.Println(strings.TrimPrefix(fmt.Sprintf("---- %s - %s: %s", strings.TrimPrefix(strings.Join(markdownFile.Parents, "/"), "/"), markdownFile.Title, url), " - "))
 	}
 }
 

@@ -2,9 +2,11 @@ package markdown2confluence
 
 import (
 	"fmt"
+	"strings"
 	"io/ioutil"
 
-	"github.com/justmiles/go-confluence"
+	"github.com/relwell/go-confluence"
+	"github.com/gernest/front"
 )
 
 // MarkdownFile contains information about the file to upload
@@ -19,6 +21,13 @@ func (f *MarkdownFile) String() (url string) {
 	return fmt.Sprintf("Path: %s, Title: %s, Parent: %s, Ancestor: %s", f.Path, f.Title, f.Parents, f.Ancestor)
 }
 
+func (f *MarkdownFile) getTitle(fm map[string]interface{}) string {
+	if val, ok := fm["title"]; ok {
+		return fmt.Sprintf("%v", val)
+	}
+	return strings.Replace(f.Title, "-", " ", 0)
+}
+
 // Upload a markdown file
 func (f *MarkdownFile) Upload(m *Markdown2Confluence) (url string, err error) {
 	var ancestorID string
@@ -29,11 +38,44 @@ func (f *MarkdownFile) Upload(m *Markdown2Confluence) (url string, err error) {
 	}
 
 	wikiContent := string(dat)
-	wikiContent = renderContent(wikiContent)
+
+	mat := front.NewMatter()
+	mat.Handle("---", front.YAMLHandler)
+	matter, body, err := mat.Parse(strings.NewReader(wikiContent))
+
+	if err != nil {
+		return url, fmt.Errorf("Could not parse front matter %s:\n\t%s", f.Path, err)
+	}
+
+	wikiContent = renderContent(body)
+
+	wikiContent += fmt.Sprintf("<br /><p style=\"color: #ccc\"><i>Article imported from <a href=\"%s\">UT Internal Documentation</a>.","https://github.com/usertesting/ut_internal_documentation")
+
+	if created_date, ok := matter["date"]; ok {
+		 wikiContent += fmt.Sprintf("Original date of creation: %s.</i>", created_date)
+	}
+
+	wikiContent += "</i></p>"
+
+	initialLabel := &confluence.Label{Name: "migrated-from-hugo"}
+	labels := []confluence.Label{*initialLabel}
+
+	if tags, ok := matter["tags"]; ok {
+		if tagList, ok := tags.([]interface{}); ok {
+			for _, tag := range tagList {
+				newLabel := &confluence.Label{Name: fmt.Sprintf("%v", tag)}
+				labels = append(labels[:], *newLabel)
+				fmt.Sprintf("%v", labels)
+			}
+		}
+	}
 
 	if m.Debug {
 		fmt.Println("---- RENDERED CONTENT START ---------------------------------")
-		fmt.Println(wikiContent)
+		fmt.Println(f.getTitle(matter))
+		fmt.Println("%v", matter)
+		fmt.Println("%v", labels)
+		// fmt.Println(wikiContent)
 		fmt.Println("---- RENDERED CONTENT END -----------------------------------")
 	}
 
@@ -46,7 +88,7 @@ func (f *MarkdownFile) Upload(m *Markdown2Confluence) (url string, err error) {
 
 	// search for existing page
 	contentResults, err := client.GetContent(&confluence.GetContentQueryParameters{
-		Title:    f.Title,
+		Title:    f.getTitle(matter),
 		Spacekey: m.Space,
 		Limit:    1,
 		Type:     "page",
@@ -102,6 +144,13 @@ func (f *MarkdownFile) Upload(m *Markdown2Confluence) (url string, err error) {
 		if err != nil {
 			return url, fmt.Errorf("Error creating page: %s", err)
 		}
+	// update labels
+	content.Metadata = &confluence.Metadata{
+		Labels: labels,
+	}
+	content.Version.Number++
+	content, err = client.UpdateContent(&content, nil)
+
 		url = client.Endpoint + content.Links.Tinyui
 	}
 
