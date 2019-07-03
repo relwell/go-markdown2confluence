@@ -2,6 +2,7 @@ package markdown2confluence
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"io/ioutil"
 
@@ -17,15 +18,20 @@ type MarkdownFile struct {
 	Ancestor string
 }
 
+func Titleize(s string) string {
+	r := regexp.MustCompile(`[-_]`)
+	return strings.Title(r.ReplaceAllString(s, " "))
+}
+
 func (f *MarkdownFile) String() (url string) {
-	return fmt.Sprintf("Path: %s, Title: %s, Parent: %s, Ancestor: %s", f.Path, f.Title, f.Parents, f.Ancestor)
+	return fmt.Sprintf("Path: %s, Title: %s, Parent: %s, Ancestor: %s", f.Path, Titleize(f.Title), f.Parents, f.Ancestor)
 }
 
 func (f *MarkdownFile) getTitle(fm map[string]interface{}) string {
 	if val, ok := fm["title"]; ok {
 		return fmt.Sprintf("%v", val)
 	}
-	return strings.Replace(f.Title, "-", " ", 0)
+	return Titleize(f.Title)
 }
 
 // Upload a markdown file
@@ -49,10 +55,18 @@ func (f *MarkdownFile) Upload(m *Markdown2Confluence) (url string, err error) {
 
 	wikiContent = renderContent(body)
 
+	// remove link logic -- it references a page already
+	refRe := regexp.MustCompile(`({{<( )?ref.*>}})`)
+	wikiContent = refRe.ReplaceAllString(wikiContent, "")
+
+	// replace figure logic
+	figureRe := regexp.MustCompile(`{{< figure src="(?P<src>[^"]+)"( title="(?P<title>[^"]+)")?.* >}}`)
+	wikiContent = figureRe.ReplaceAllString(wikiContent, "<br/><p style=\"color: rgb(200, 50, 50)\"><b>TODO</b>: upload file $1 from wiki, with title $3</p><br/>")
+
 	wikiContent += fmt.Sprintf("<br /><p style=\"color: #ccc\"><i>Article imported from <a href=\"%s\">UT Internal Documentation</a>.","https://github.com/usertesting/ut_internal_documentation")
 
 	if created_date, ok := matter["date"]; ok {
-		 wikiContent += fmt.Sprintf("Original date of creation: %s.</i>", created_date)
+		 wikiContent += fmt.Sprintf("Original date of creation: %s.", created_date)
 	}
 
 	wikiContent += "</i></p>"
@@ -75,7 +89,7 @@ func (f *MarkdownFile) Upload(m *Markdown2Confluence) (url string, err error) {
 		fmt.Println(f.getTitle(matter))
 		fmt.Println("%v", matter)
 		fmt.Println("%v", labels)
-		// fmt.Println(wikiContent)
+		fmt.Println(wikiContent)
 		fmt.Println("---- RENDERED CONTENT END -----------------------------------")
 	}
 
@@ -112,11 +126,11 @@ func (f *MarkdownFile) Upload(m *Markdown2Confluence) (url string, err error) {
 		content.Body.Storage.Representation = "storage"
 		content.Body.Storage.Value = wikiContent
 
-		if ancestorID != "" {
-			content.Ancestors = append(content.Ancestors, Ancestor{
-				ID: ancestorID,
-			})
-		}
+		// if ancestorID != "" {
+		// 	content.Ancestors = append(content.Ancestors, Ancestor{
+		// 		ID: ancestorID,
+		// 	})
+		// }
 
 		content, err = client.UpdateContent(&content, nil)
 		if err != nil {
@@ -128,7 +142,7 @@ func (f *MarkdownFile) Upload(m *Markdown2Confluence) (url string, err error) {
 	} else {
 
 		bp := confluence.CreateContentBodyParameters{}
-		bp.Title = f.Title
+		bp.Title = f.getTitle(matter)
 		bp.Type = "page"
 		bp.Space.Key = m.Space
 		bp.Body.Storage.Representation = "storage"
@@ -144,12 +158,10 @@ func (f *MarkdownFile) Upload(m *Markdown2Confluence) (url string, err error) {
 		if err != nil {
 			return url, fmt.Errorf("Error creating page: %s", err)
 		}
-	// update labels
-	content.Metadata = &confluence.Metadata{
-		Labels: labels,
-	}
-	content.Version.Number++
-	content, err = client.UpdateContent(&content, nil)
+		// update labels
+		content.Metadata.Labels = labels
+		content.Version.Number++
+		content, err = client.UpdateContent(&content, nil)
 
 		url = client.Endpoint + content.Links.Tinyui
 	}
@@ -204,7 +216,7 @@ func (f *MarkdownFile) FindOrCreateAncestor(m *Markdown2Confluence, client *conf
 
 	// if parent page does not exist, create it
 	bp := confluence.CreateContentBodyParameters{}
-	bp.Title = parent
+	bp.Title = Titleize(parent)
 	bp.Type = "page"
 	bp.Space.Key = m.Space
 	bp.Body.Storage.Representation = "storage"

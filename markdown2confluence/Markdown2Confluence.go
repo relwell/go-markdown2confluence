@@ -76,6 +76,24 @@ func (m Markdown2Confluence) Validate() error {
 	return nil
 }
 
+func GetParentsAndTitle(path string, f string) ([]string, string) {
+	parents := strings.Split(filepath.Dir(strings.TrimPrefix(filepath.ToSlash(path), filepath.ToSlash(f))), "/")
+	var title string;
+	if path == "_index.md" || path == "index.md" {
+		last_idx := len(parents)
+		title = parents[last_idx]
+		parents = parents[:last_idx]
+	} else {
+		title = strings.TrimSuffix(filepath.Base(path), ".md")
+	}
+
+	for i, p := range parents {
+		parents[i] = Titleize(p)
+	}
+
+	return parents, Titleize(title)
+}
+
 // Run the sync
 func (m *Markdown2Confluence) Run() []error {
 	var markdownFiles []MarkdownFile
@@ -97,11 +115,12 @@ func (m *Markdown2Confluence) Run() []error {
 					if err != nil {
 						return err
 					}
+					parents, title := GetParentsAndTitle(path, f)
 					if strings.HasSuffix(path, ".md") {
 						md := MarkdownFile{
 							Path:    path,
-							Parents: strings.Split(filepath.Dir(strings.TrimPrefix(filepath.ToSlash(path), filepath.ToSlash(f))), "/"),
-							Title:   strings.TrimSuffix(filepath.Base(path), ".md"),
+							Parents: parents,
+							Title:   title,
 						}
 						if m.Ancestor != "" {
 							md.Parents = append([]string{m.Ancestor}, md.Parents...)
