@@ -201,7 +201,7 @@ func (f *MarkdownFile) FindOrCreateAncestor(m *Markdown2Confluence, client *conf
 	}
 
 	contentResults, err := client.GetContent(&confluence.GetContentQueryParameters{
-		Title:    Titleize(parent),
+		Title:    parent,
 		Spacekey: m.Space,
 		Limit:    1,
 		Type:     "page",
