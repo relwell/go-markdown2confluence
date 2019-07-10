@@ -15,7 +15,7 @@ const (
 	DefaultEndpoint = "https://mydomain.atlassian.net/wiki"
 
 	// Parallelism determines how many files to convert and upload at a time
-	Parallelism = 1
+	Parallelism = 10
 )
 
 // Markdown2Confluence stores the settings for each run
@@ -79,17 +79,27 @@ func (m Markdown2Confluence) Validate() error {
 func GetParentsAndTitle(path string, f string) ([]string, string) {
 	parents := strings.Split(filepath.Dir(strings.TrimPrefix(filepath.ToSlash(path), filepath.ToSlash(f))), "/")
 	var title string;
-	if path == "_index.md" || path == "index.md" {
-		last_idx := len(parents)
-		title = parents[last_idx]
-		parents = parents[:last_idx]
-	} else {
-		title = strings.TrimSuffix(filepath.Base(path), ".md")
-	}
+	fmt.Println("=== Getting parents and title for ===")
+	fmt.Println(path)
+	fmt.Println(f)
+	// if strings.HasSuffix(path, "index.md") {
+	// 	last_idx := len(parents) - 1
+	// 	title = parents[last_idx]
+	// 	parents = parents[:last_idx]
+	// } else {
+	// 	title = strings.TrimSuffix(filepath.Base(path), ".md")
+	// }
+	// we are ignoring index ones for now because of some malarkey with case sensitivity
+	title = strings.TrimSuffix(filepath.Base(path), ".md")
 
 	for i, p := range parents {
 		parents[i] = Titleize(p)
 	}
+
+	fmt.Println("== it's ==")
+	fmt.Println(parents)
+	fmt.Println(Titleize(title))
+	fmt.Println("====")
 
 	return parents, Titleize(title)
 }

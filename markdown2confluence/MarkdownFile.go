@@ -86,10 +86,12 @@ func (f *MarkdownFile) Upload(m *Markdown2Confluence) (url string, err error) {
 
 	if m.Debug {
 		fmt.Println("---- RENDERED CONTENT START ---------------------------------")
-		fmt.Println(f.getTitle(matter))
-		fmt.Println("%v", matter)
-		fmt.Println("%v", labels)
-		fmt.Println(wikiContent)
+		fmt.Println("%v", f.getTitle(matter))
+		fmt.Println("%v", f.Parents)
+		// fmt.Println(f.getTitle(matter))
+		// fmt.Println("%v", matter)
+		// fmt.Println("%v", labels)
+		// fmt.Println(wikiContent)
 		fmt.Println("---- RENDERED CONTENT END -----------------------------------")
 	}
 
@@ -98,7 +100,7 @@ func (f *MarkdownFile) Upload(m *Markdown2Confluence) (url string, err error) {
 	client.Username = m.Username
 	client.Password = m.Password
 	client.Endpoint = m.Endpoint
-	client.Debug = m.Debug
+	// client.Debug = m.Debug
 
 	// search for existing page
 	contentResults, err := client.GetContent(&confluence.GetContentQueryParameters{
@@ -199,7 +201,7 @@ func (f *MarkdownFile) FindOrCreateAncestor(m *Markdown2Confluence, client *conf
 	}
 
 	contentResults, err := client.GetContent(&confluence.GetContentQueryParameters{
-		Title:    parent,
+		Title:    Titleize(parent),
 		Spacekey: m.Space,
 		Limit:    1,
 		Type:     "page",
