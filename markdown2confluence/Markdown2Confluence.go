@@ -15,7 +15,7 @@ const (
 	DefaultEndpoint = "https://mydomain.atlassian.net/wiki"
 
 	// Parallelism determines how many files to convert and upload at a time
-	Parallelism = 10
+	Parallelism = 1
 )
 
 // Markdown2Confluence stores the settings for each run
@@ -78,7 +78,7 @@ func (m Markdown2Confluence) Validate() error {
 
 func GetParentsAndTitle(path string, f string) ([]string, string) {
 	parents := strings.Split(filepath.Dir(strings.TrimPrefix(filepath.ToSlash(path), filepath.ToSlash(f))), "/")
-	var title string;
+	var title string
 	fmt.Println("=== Getting parents and title for ===")
 	fmt.Println(path)
 	fmt.Println(f)

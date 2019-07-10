@@ -2,12 +2,12 @@ package markdown2confluence
 
 import (
 	"fmt"
+	"io/ioutil"
 	"regexp"
 	"strings"
-	"io/ioutil"
 
-	"github.com/relwell/go-confluence"
 	"github.com/gernest/front"
+	"github.com/relwell/go-confluence"
 )
 
 // MarkdownFile contains information about the file to upload
@@ -63,10 +63,10 @@ func (f *MarkdownFile) Upload(m *Markdown2Confluence) (url string, err error) {
 	figureRe := regexp.MustCompile(`{{< figure src="(?P<src>[^"]+)"( title="(?P<title>[^"]+)")?.* >}}`)
 	wikiContent = figureRe.ReplaceAllString(wikiContent, "<br/><p style=\"color: rgb(200, 50, 50)\"><b>TODO</b>: upload file $1 from wiki, with title $3</p><br/>")
 
-	wikiContent += fmt.Sprintf("<br /><p style=\"color: #ccc\"><i>Article imported from <a href=\"%s\">UT Internal Documentation</a>.","https://github.com/usertesting/ut_internal_documentation")
+	wikiContent += fmt.Sprintf("<br /><p style=\"color: #ccc\"><i>Article imported from <a href=\"%s\">UT Internal Documentation</a>.", "https://github.com/usertesting/ut_internal_documentation")
 
 	if created_date, ok := matter["date"]; ok {
-		 wikiContent += fmt.Sprintf("Original date of creation: %s.", created_date)
+		wikiContent += fmt.Sprintf("Original date of creation: %s.", created_date)
 	}
 
 	wikiContent += "</i></p>"
@@ -77,7 +77,7 @@ func (f *MarkdownFile) Upload(m *Markdown2Confluence) (url string, err error) {
 	if tags, ok := matter["tags"]; ok {
 		if tagList, ok := tags.([]interface{}); ok {
 			for _, tag := range tagList {
-				newLabel := &confluence.Label{Name: fmt.Sprintf("%v", tag)}
+				newLabel := &confluence.Label{Name: strings.Replace(fmt.Sprintf("%v", tag), " ", "-", -1)}
 				labels = append(labels[:], *newLabel)
 				fmt.Sprintf("%v", labels)
 			}
